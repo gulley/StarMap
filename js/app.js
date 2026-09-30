@@ -23,6 +23,11 @@
     store.get('layers', {}));
   let projection = params.get('proj') || store.get('projection', 'equalEarth');
   if (!['equalEarth', 'equirect', 'globe'].includes(projection)) projection = 'equalEarth';
+  // EXPERIMENT: how the four regions (day/night x in/out of view) are told apart.
+  // 'focus': daylight gets a sky-blue wash, and beyond the horizon the map turns gray and
+  // soft. 'haze': the original flat haze. See NOTES.md.
+  let regionStyle = params.get('regions') || store.get('regionStyle', 'focus');
+  if (!['focus', 'haze'].includes(regionStyle)) regionStyle = 'focus';
 
   // ---------- simulation clock ----------
   const clock = { baseSim: Date.now(), baseReal: Date.now(), speed: 1 };
@@ -442,8 +447,13 @@
     ctx.drawImage(overlay, 0, 0, view.W, view.H);
   }
 
+  // Daylight wash for the 'focus' region style: a pale sky blue, so day is marked by a
+  // color of its own rather than just the absence of night.
+  const DAY_RGB = [150, 200, 255], DAY_ALPHA = 0.3, NIGHT_RGB = [4, 8, 30];
+
   function drawNight(sky) {
     ensureOverlayVecs();
+    const dayWash = regionStyle === 'focus';
     const ow = overlay.width, oh = overlay.height;
     const img = octx.createImageData(ow, oh);
     const px = img.data;
@@ -454,9 +464,13 @@
       if (Number.isNaN(x)) continue;
       const alt = Math.asin(x * s[0] + y * s[1] + z * s[2]) * R2D;
       // A soft step at sunset, then deepening through the 18 degrees of twilight.
-      const a = 0.34 * clamp01((0.8 - alt) / 1.6) + 0.44 * clamp01(-alt / 18);
+      const a = 0.3 * clamp01((0.8 - alt) / 1.6) + 0.36 * clamp01(-alt / 18);
       const q = p * 4;
-      px[q] = 4; px[q + 1] = 8; px[q + 2] = 30; px[q + 3] = a * 255;
+      // The day wash fades out across the same soft step at sunset.
+      const d = dayWash ? DAY_ALPHA * clamp01((alt + 0.8) / 1.6) : 0, total = a + d;
+      if (total <= 0) continue;
+      for (let c = 0; c < 3; c++) px[q + c] = (NIGHT_RGB[c] * a + DAY_RGB[c] * d) / total;
+      px[q + 3] = Math.min(1, total) * 255;
     }
     blitOverlay(img);
   }
@@ -482,6 +496,53 @@
       px[q] = HAZE[0]; px[q + 1] = HAZE[1]; px[q + 2] = HAZE[2]; px[q + 3] = a * 255;
     }
     blitOverlay(img);
+  }
+
+  // 'focus' region style: past the horizon the finished map is redrawn gray and slightly
+  // out of focus, which reads as "can't see that" while keeping day light and night dark.
+  // The blend is feathered over a few degrees. Needs canvas filters; without them the
+  // haze is used instead.
+  const FOCUS_FILTER = (px) => `grayscale(1) brightness(0.72) contrast(0.85) blur(${px}px)`;
+  const FOCUS_FROM = 88, FOCUS_TO = 98;
+  const canFilter = 'filter' in ctx;
+  const maskCanvas = document.createElement('canvas'), mctx = maskCanvas.getContext('2d');
+  const fxCanvas = document.createElement('canvas'), fctx = fxCanvas.getContext('2d');
+  let maskKey = '';
+
+  function drawOutOfFocus() {
+    ensureOverlayVecs();
+    if (maskKey !== overlayKey) {
+      maskKey = overlayKey;
+      const ow = overlay.width, oh = overlay.height;
+      maskCanvas.width = ow; maskCanvas.height = oh;
+      const img = mctx.createImageData(ow, oh), px = img.data;
+      const x0 = Math.cos(FOCUS_FROM * D2R), x1 = Math.cos(FOCUS_TO * D2R);
+      for (let p = 0, o = 0; p < ow * oh; p++, o += 3) {
+        const x = overlayVecs[o];
+        if (Number.isNaN(x)) continue;
+        const f = clamp01((x0 - x) / (x0 - x1));
+        px[p * 4 + 3] = f * f * (3 - 2 * f) * 255;
+      }
+      mctx.putImageData(img, 0, 0);
+    }
+    if (fxCanvas.width !== canvas.width || fxCanvas.height !== canvas.height) {
+      fxCanvas.width = canvas.width; fxCanvas.height = canvas.height;
+    }
+    // Filtered copy of the map so far, cut down to the out-of-view region...
+    fctx.globalCompositeOperation = 'copy';
+    fctx.filter = FOCUS_FILTER(0.6 * dpr);
+    fctx.drawImage(canvas, 0, 0);
+    fctx.filter = 'none';
+    fctx.globalCompositeOperation = 'destination-in';
+    fctx.imageSmoothingEnabled = true;
+    fctx.imageSmoothingQuality = 'high';
+    fctx.drawImage(maskCanvas, 0, 0, fxCanvas.width, fxCanvas.height);
+    fctx.globalCompositeOperation = 'source-over';
+    // ...laid back over it, inside the current clip.
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(fxCanvas, 0, 0);
+    ctx.restore();
   }
 
   // ---------- grid ----------
@@ -763,9 +824,12 @@
       if (layers.labels) {
         const bold = b.kind !== 'star';
         ctx.font = (bold ? '600 12px' : '11px') + ' system-ui, sans-serif';
-        ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        const lx = x + r + (b.kind === 'planet' ? 6 : 4);
+        // Labels go to the right, or to the left if they would run off the canvas.
+        const gap = r + (b.kind === 'planet' ? 6 : 4);
+        const left = x + gap + ctx.measureText(b.name).width > view.W - 2;
+        ctx.textAlign = left ? 'right' : 'left';
+        const lx = left ? x - gap : x + gap;
         ctx.lineWidth = 3;
         ctx.strokeStyle = 'rgba(6, 9, 20, 0.85)';
         ctx.strokeText(b.name, lx, y);
@@ -832,9 +896,10 @@
     if (layers.ecliptic) strokePath(sky.ecliptic, 'rgba(206, 150, 255, 0.85)', 1.6);
     if (layers.night) strokePath(horizonOf(sky.sun.lat, sky.sun.lon), 'rgba(244, 213, 141, 0.9)', 1.6, [], true);
     if (layers.trails) drawTrails(t, sky);
-    // The haze goes over everything drawn so far, so the lines fade out past the horizon too.
+    // The haze (or the out-of-focus pass) goes over everything drawn so far, so the lines
+    // fade out past the horizon too.
     if (layers.visible) {
-      drawHaze();
+      if (regionStyle === 'focus' && canFilter) drawOutOfFocus(); else drawHaze();
       // The observer's horizon is the pair of rotated meridians at ±90°.
       for (const m of [-90, 90]) {
         strokePath(range(-90, 90, 2).map((lat) => [m, lat]), 'rgba(126, 224, 255, 0.7)', 1.4, [], true);
@@ -1183,6 +1248,14 @@
       store.set('layers', layers);
       dirty = true;
     });
+  });
+
+  const regionSel = document.getElementById('regionStyle');
+  regionSel.value = regionStyle;
+  regionSel.addEventListener('change', () => {
+    regionStyle = regionSel.value;
+    store.set('regionStyle', regionStyle);
+    dirty = true;
   });
 
   const projSel = document.getElementById('projection');
