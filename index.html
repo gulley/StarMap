@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>StarMap</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <h1>StarMap</h1>
+      <span class="sub">Where each body is directly overhead</span>
+    </div>
+    <div class="bars">
+      <div class="clock">
+        <div id="utc" class="utc">—</div>
+        <div id="local" class="local">—</div>
+      </div>
+      <div class="controls">
+        <button data-step="-86400" title="Back one day">−1d</button>
+        <button data-step="-3600" title="Back one hour">−1h</button>
+        <button id="now" title="Jump to the current time at real speed">Now</button>
+        <button data-step="3600" title="Forward one hour">+1h</button>
+        <button data-step="86400" title="Forward one day">+1d</button>
+        <select id="speed" title="Simulation speed">
+          <option value="0">Paused</option>
+          <option value="1" selected>Real time</option>
+          <option value="60">1 min / s</option>
+          <option value="600">10 min / s</option>
+          <option value="3600">1 hour / s</option>
+          <option value="86400">1 day / s</option>
+        </select>
+        <input id="datetime" type="datetime-local" step="60" title="Set date and time (your local time zone)">
+      </div>
+
+      <div class="clock">
+        <div id="coords" class="utc">—</div>
+        <div id="place" class="local">—</div>
+      </div>
+      <div class="controls">
+        <button data-move="lat:-5" title="Move 5° south">−5° lat</button>
+        <button data-move="lon:-5" title="Move 5° west">−5° lon</button>
+        <button id="here" title="Jump to your own location">Here</button>
+        <button data-move="lon:5" title="Move 5° east">+5° lon</button>
+        <button data-move="lat:5" title="Move 5° north">+5° lat</button>
+        <input id="latIn" class="coord" type="number" min="-89.9" max="89.9" step="0.01" title="Latitude (° north)">
+        <input id="lonIn" class="coord" type="number" min="-180" max="180" step="0.01" title="Longitude (° east)">
+        <input id="cityIn" class="city" type="text" list="cityList" placeholder="City…" autocomplete="off"
+          spellcheck="false" title="Type a city name and press Enter">
+        <datalist id="cityList"></datalist>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="map-wrap">
+      <canvas id="map"></canvas>
+      <div id="tooltip" class="tooltip" hidden></div>
+      <div class="scrubbers">
+        <label for="doy">Day of year</label>
+        <div class="track">
+          <input id="doy" type="range" min="1" max="365" step="1">
+          <div id="doyMarks"></div>
+        </div>
+        <output id="doyOut">—</output>
+        <label for="tod">Time of day</label>
+        <div class="track">
+          <div id="todBands"></div>
+          <input id="tod" type="range" min="0" max="1439" step="1">
+          <div id="todMarks"></div>
+        </div>
+        <output id="todOut">—</output>
+      </div>
+      <div class="hint">The map is centered on the observer (red dot). Drag the globe to move them, or
+        double-click a spot to jump there. The middle half of the map is the sky they can see.</div>
+    </section>
+
+    <aside>
+      <section class="panel">
+        <h2>Tonight</h2>
+        <div id="tonight" class="tonight">—</div>
+        <div class="row"><button id="goSunset">Jump to sunset</button></div>
+      </section>
+
+      <section class="panel">
+        <h2>Observer</h2>
+        <div id="observer" class="observer">—</div>
+      </section>
+
+      <section class="panel">
+        <h2>Layers</h2>
+        <label><input type="checkbox" data-layer="trails" checked> Trails (last 2 h)</label>
+        <label><input type="checkbox" data-layer="night" checked> Day / night</label>
+        <label><input type="checkbox" data-layer="visible" checked> Visible sky region</label>
+        <label><input type="checkbox" data-layer="altitude" checked> Altitude 30° and 60°</label>
+        <label><input type="checkbox" data-layer="ecliptic" checked> Ecliptic</label>
+        <label><input type="checkbox" data-layer="grid" checked> Equator and grid</label>
+        <label><input type="checkbox" data-layer="labels" checked> Labels</label>
+        <label class="select">Projection
+          <select id="projection">
+            <option value="equalEarth">Equal Earth</option>
+            <option value="equirect">Equirectangular</option>
+            <option value="globe">3-D globe</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="panel">
+        <h2>Sky from here</h2>
+        <table id="bodies">
+          <thead><tr><th>Object</th><th>Alt</th><th>Az</th><th>Tonight</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <section class="panel legend">
+        <h2>Legend</h2>
+        <div><i class="sw sw-term"></i> Terminator (sunrise / sunset line)</div>
+        <div><i class="sw sw-hor"></i> Observer's horizon</div>
+        <div><i class="sw sw-alt"></i> Altitude 30° and 60° above the horizon</div>
+        <div><i class="sw sw-ecl"></i> Ecliptic</div>
+        <div><i class="sw sw-eq"></i> Equator (celestial and terrestrial)</div>
+        <div><i class="sw sw-trail"></i> Where it has been over the last 2 hours (fainter = below horizon)</div>
+        <div><i class="anti"></i> Anti-solar point (directly opposite the Sun)</div>
+        <p>Every body is drawn over its <em>sub-point</em>, the place on Earth where it is straight overhead.
+          The observer can see everything whose sub-point is in the clear middle of the map, the half of the
+          globe within 90° of them. Beyond their horizon the map fades into haze.</p>
+      </section>
+    </aside>
+  </main>
+
+  <script src="data/land.js"></script>
+  <script src="data/stars.js"></script>
+  <script src="data/cities.js"></script>
+  <script src="js/astro.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+I want to make a map of what's happening in the sky but I want it to be a certain kind of hybrid map. We're used to maps that represent the ordinary globe and we've also seen plenty of globe representations of the sky. I want to combine both of these notions into a flattened map view. 
+
+The basic idea is something like a typical Mercator projection map. Stretched over this map I want to have an indication of where the day and night regions are. For reference see the image.png file in images/. I want a basic indication of where the outlines of the continents are and an indication of where the night and day regions are. But I also want to show where the stars and planets are superimposed on this. The idea is to put the planets and stars over the point on the earth that they are directly over. To this we will add another region, which is the half of the sky that is visible from a given location.
+
+We will approach this idea in steps so let's start off with the sun, the moon, and the five naked-eye planets, as well as a handful of low-magnitude stars. Show the lines that represent the global equator, the ecliptic, and the divider between regions of night and day, and the regions that can be seen from a specific location. The specific location will be indicated by a dot, which can be relocated with the click of the mouse. 
+
+I want to do all this inside of a pure HTML/JavaScript application. 
