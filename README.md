@@ -2,7 +2,7 @@
 
 A map of the sky laid over a map of the Earth. Each celestial body is drawn over its **sub-point**, the place on Earth where it is directly overhead. That way the landscape and the sky share one flat picture.
 
-The map is always centered on you, the observer. The half of the globe within 90° of you is the half of the sky you can see. It's the clear middle of the map, and everything beyond your horizon fades into haze. The Earth turns under the sky, so stars and planets drift west across the map at about 15° an hour.
+The map is always centered on you, the observer. The half of the globe within 90° of you is the half of the sky you can see. It's the clear middle of the map, and everything beyond your horizon turns gray. The Earth turns under the sky, so stars and planets drift west across the map at about 15° an hour.
 
 The app is built for the evening: seeing at a glance what's up between sunset and midnight.
 
@@ -22,9 +22,9 @@ index.html?lat=42.36&lon=-71.06&proj=globe  # 3-D globe
 
 - **Sun, Moon, and the five naked-eye planets** (Mercury, Venus, Mars, Jupiter, Saturn), plus 22 of the brightest stars.
 - **The Moon's phase glyph** shows the real lit fraction. It is turned the way it looks from where you stand, with your zenith as "up".
-- **Day and night shading** with a soft twilight edge, and the terminator (the sunrise/sunset line).
+- **Day and night shading:** a pale sky-blue tint on the day side and navy on the night side, with a soft twilight edge, and the terminator (the sunrise/sunset line).
 - **Anti-solar point:** a small black ring marking the spot directly opposite the Sun.
-- **Your horizon.** Inside it the map is at full contrast; outside it's hazy and muted.
+- **Your horizon.** Inside it the map is in full color; outside it's gray and very slightly soft, still lighter by day and darker by night.
 - **Altitude rings** at 30° and 60° above your horizon: faint circles around you, the inner one close to overhead. The horizon itself is 0°.
 - **The ecliptic** (lavender) and **the equator.** The terrestrial and celestial equators coincide on this map.
 - **Trails:** a faint, fading tail behind each body showing where it has been over the last 2 hours.
@@ -46,7 +46,7 @@ index.html?lat=42.36&lon=-71.06&proj=globe  # 3-D globe
 - **Hover** over any object for its coordinates, where it's overhead, and its altitude and azimuth from you.
 - The **Tonight** panel shows sunset, full dark and solar midnight.
 - The **Sky from here** table lists every object's altitude and direction, plus when it's up during tonight's evening.
-- The **Layers** panel toggles trails, day/night, the visible region, the altitude rings, the ecliptic, the grid and labels. It also switches the projection between **Equal Earth** (the default, which keeps areas true near the poles), **equirectangular**, and a **3-D globe**.
+- The **Layers** panel toggles the equator and grid, the ecliptic, day/night, the visible region, the altitude rings, labels and trails. It also switches the projection between **Equal Earth** (the default, which keeps areas true near the poles), **equirectangular**, and a **3-D globe**.
 
 Times are shown on your own clock. "Midnight" means solar midnight at the observer.
 

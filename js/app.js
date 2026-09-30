@@ -23,11 +23,6 @@
     store.get('layers', {}));
   let projection = params.get('proj') || store.get('projection', 'equalEarth');
   if (!['equalEarth', 'equirect', 'globe'].includes(projection)) projection = 'equalEarth';
-  // EXPERIMENT: how the four regions (day/night x in/out of view) are told apart.
-  // 'focus': daylight gets a sky-blue wash, and beyond the horizon the map turns gray and
-  // soft. 'haze': the original flat haze. See NOTES.md.
-  let regionStyle = params.get('regions') || store.get('regionStyle', 'focus');
-  if (!['focus', 'haze'].includes(regionStyle)) regionStyle = 'focus';
 
   // ---------- simulation clock ----------
   const clock = { baseSim: Date.now(), baseReal: Date.now(), speed: 1 };
@@ -209,6 +204,8 @@
   let landRings = [], landKey = '';
 
   // Ring of [lon, lat] -> continuous in longitude, closed through the pole if it wraps.
+  // `coast` is how many points are real coastline; any after that are the closure, which
+  // is filled but not outlined.
   function unwrapRing(ring) {
     const out = [];
     for (const [lon, lat] of ring) {
@@ -219,6 +216,7 @@
       const pole = out.reduce((s, p) => s + p[1], 0) < 0 ? -90 : 90;
       for (let i = 0; i <= 36; i++) out.push([last + (first - last) * i / 36, pole]);
     }
+    out.coast = ring.length;
     return out;
   }
 
@@ -315,19 +313,23 @@
   // part of a ring falls across the seam.
   function drawLand() {
     if (isGlobe()) { drawGlobeLand(); return; }
-    ctx.beginPath();
-    for (const ring of landRings) {
-      const base = norm180(ring[0][0]) - ring[0][0];
-      for (const k of [-360, 0, 360]) {
-        ring.forEach(([lon, lat], i) => {
-          const [x, y] = projectRot(lon + base + k, lat);
-          i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
-        });
-        ctx.closePath();
+    // Fill with each ring's pole closure; outline only the coastline, since the closure
+    // would otherwise show as a straight line running off to the edge of the map.
+    for (const outline of [false, true]) {
+      ctx.beginPath();
+      for (const ring of landRings) {
+        const base = norm180(ring[0][0]) - ring[0][0];
+        const n = outline ? ring.coast : ring.length;
+        for (const k of [-360, 0, 360]) {
+          for (let i = 0; i < n; i++) {
+            const [x, y] = projectRot(ring[i][0] + base + k, ring[i][1]);
+            i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+          }
+          if (!outline) ctx.closePath();
+        }
       }
+      if (!outline) { ctx.fillStyle = '#5d6b4f'; ctx.fill('evenodd'); }
     }
-    ctx.fillStyle = '#5d6b4f';
-    ctx.fill('evenodd');
     ctx.lineWidth = 0.8;
     ctx.strokeStyle = 'rgba(12, 16, 22, 0.85)';
     ctx.stroke();
@@ -447,13 +449,12 @@
     ctx.drawImage(overlay, 0, 0, view.W, view.H);
   }
 
-  // Daylight wash for the 'focus' region style: a pale sky blue, so day is marked by a
-  // color of its own rather than just the absence of night.
+  // Day is a pale sky-blue wash, so it's marked by a color of its own rather than just the
+  // absence of night. Night is a dark navy.
   const DAY_RGB = [150, 200, 255], DAY_ALPHA = 0.3, NIGHT_RGB = [4, 8, 30];
 
   function drawNight(sky) {
     ensureOverlayVecs();
-    const dayWash = regionStyle === 'focus';
     const ow = overlay.width, oh = overlay.height;
     const img = octx.createImageData(ow, oh);
     const px = img.data;
@@ -467,7 +468,7 @@
       const a = 0.3 * clamp01((0.8 - alt) / 1.6) + 0.36 * clamp01(-alt / 18);
       const q = p * 4;
       // The day wash fades out across the same soft step at sunset.
-      const d = dayWash ? DAY_ALPHA * clamp01((alt + 0.8) / 1.6) : 0, total = a + d;
+      const d = DAY_ALPHA * clamp01((alt + 0.8) / 1.6), total = a + d;
       if (total <= 0) continue;
       for (let c = 0; c < 3; c++) px[q + c] = (NIGHT_RGB[c] * a + DAY_RGB[c] * d) / total;
       px[q + 3] = Math.min(1, total) * 255;
@@ -475,33 +476,10 @@
     blitOverlay(img);
   }
 
-  // Beyond the observer's horizon the map is washed toward a flat gray-blue: low contrast,
-  // desaturated, fading in from just inside the horizon to about 20° past it. In the
-  // rotated frame this depends only on x (the cosine of the distance from the observer).
-  const HAZE = [62, 70, 90], HAZE_ALPHA = 0.62;
-  let hazeImg = null, hazeKey = '';
-  function drawHaze() {
-    ensureOverlayVecs();
-    if (hazeKey === overlayKey) { blitOverlay(hazeImg); return; }
-    hazeKey = overlayKey;
-    const ow = overlay.width, oh = overlay.height;
-    const img = hazeImg = octx.createImageData(ow, oh);
-    const px = img.data;
-    const x0 = Math.cos(88 * D2R), x1 = Math.cos(110 * D2R);
-    for (let p = 0, o = 0; p < ow * oh; p++, o += 3) {
-      const x = overlayVecs[o];
-      if (Number.isNaN(x)) continue;
-      const f = clamp01((x0 - x) / (x0 - x1)), a = HAZE_ALPHA * f * f * (3 - 2 * f);
-      const q = p * 4;
-      px[q] = HAZE[0]; px[q + 1] = HAZE[1]; px[q + 2] = HAZE[2]; px[q + 3] = a * 255;
-    }
-    blitOverlay(img);
-  }
-
-  // 'focus' region style: past the horizon the finished map is redrawn gray and slightly
-  // out of focus, which reads as "can't see that" while keeping day light and night dark.
-  // The blend is feathered over a few degrees. Needs canvas filters; without them the
-  // haze is used instead.
+  // Beyond the observer's horizon the finished map is redrawn in gray and very slightly
+  // soft, which reads as "can't see that" while keeping day light and night dark. The
+  // blend is feathered over a few degrees. In the rotated frame this depends only on x
+  // (the cosine of the distance from the observer).
   const FOCUS_FILTER = (px) => `grayscale(1) brightness(0.72) contrast(0.85) blur(${px}px)`;
   const FOCUS_FROM = 88, FOCUS_TO = 98;
   const canFilter = 'filter' in ctx;
@@ -509,7 +487,7 @@
   const fxCanvas = document.createElement('canvas'), fctx = fxCanvas.getContext('2d');
   let maskKey = '';
 
-  function drawOutOfFocus() {
+  function drawOutOfView() {
     ensureOverlayVecs();
     if (maskKey !== overlayKey) {
       maskKey = overlayKey;
@@ -530,9 +508,20 @@
     }
     // Filtered copy of the map so far, cut down to the out-of-view region...
     fctx.globalCompositeOperation = 'copy';
-    fctx.filter = FOCUS_FILTER(0.6 * dpr);
-    fctx.drawImage(canvas, 0, 0);
-    fctx.filter = 'none';
+    if (canFilter) {
+      fctx.filter = FOCUS_FILTER(0.6 * dpr);
+      fctx.drawImage(canvas, 0, 0);
+      fctx.filter = 'none';
+    } else {
+      // No canvas filters (older Safari): the same gray by hand, without the blur.
+      fctx.drawImage(canvas, 0, 0);
+      const img = fctx.getImageData(0, 0, fxCanvas.width, fxCanvas.height), px = img.data;
+      for (let q = 0; q < px.length; q += 4) {
+        const l = ((0.2126 * px[q] + 0.7152 * px[q + 1] + 0.0722 * px[q + 2]) * 0.72 - 128) * 0.85 + 128;
+        px[q] = px[q + 1] = px[q + 2] = l;
+      }
+      fctx.putImageData(img, 0, 0);
+    }
     fctx.globalCompositeOperation = 'destination-in';
     fctx.imageSmoothingEnabled = true;
     fctx.imageSmoothingQuality = 'high';
@@ -896,10 +885,10 @@
     if (layers.ecliptic) strokePath(sky.ecliptic, 'rgba(206, 150, 255, 0.85)', 1.6);
     if (layers.night) strokePath(horizonOf(sky.sun.lat, sky.sun.lon), 'rgba(244, 213, 141, 0.9)', 1.6, [], true);
     if (layers.trails) drawTrails(t, sky);
-    // The haze (or the out-of-focus pass) goes over everything drawn so far, so the lines
-    // fade out past the horizon too.
+    // The gray pass goes over everything drawn so far, so the lines turn gray past the
+    // horizon too.
     if (layers.visible) {
-      if (regionStyle === 'focus' && canFilter) drawOutOfFocus(); else drawHaze();
+      drawOutOfView();
       // The observer's horizon is the pair of rotated meridians at ±90°.
       for (const m of [-90, 90]) {
         strokePath(range(-90, 90, 2).map((lat) => [m, lat]), 'rgba(126, 224, 255, 0.7)', 1.4, [], true);
@@ -932,14 +921,6 @@
   const cardinal = (az) => CARDINALS[Math.round(az / 22.5) % 16];
   const pad = (n) => String(n).padStart(2, '0');
 
-  function sunStatus(alt) {
-    if (alt > SUNSET_ALT) return 'Daylight';
-    if (alt > -6) return 'Civil twilight';
-    if (alt > -12) return 'Nautical twilight';
-    if (alt > -18) return 'Astronomical twilight';
-    return 'Night';
-  }
-
   function moonPhaseName(m) {
     if (m.illum < 0.03) return 'New moon';
     if (m.illum > 0.97) return 'Full moon';
@@ -949,7 +930,6 @@
 
   // ---------- side panel and scrubbers ----------
   const tbody = document.querySelector('#bodies tbody');
-  const obsEl = document.getElementById('observer');
   const utcEl = document.getElementById('utc');
   const localEl = document.getElementById('local');
   const dtInput = document.getElementById('datetime');
@@ -1056,13 +1036,7 @@
       updateTodMarks(e, noon);
     }
 
-    const sunA = sky.sun.altAz.alt, m = sky.moon;
-    const lst = norm360(sky.gmst + observer.lon);
     updateLocationBar();
-    obsEl.innerHTML = `
-      <div><span class="dim">Local sidereal time</span> ${fmtHours(lst)}</div>
-      <div><span class="dim">Sun</span> ${sunA.toFixed(1)}° · ${sunStatus(sunA)}</div>
-      <div><span class="dim">Moon</span> ${moonPhaseName(m)}, ${Math.round(m.illum * 100)}% lit</div>`;
 
     const rank = { sun: 0, moon: 1, planet: 2, star: 3 };
     const upTonight = (b) => (evening && b.kind === 'star' && upIntervals(evening.trails.get(b.name)).length ? 0 : 1);
@@ -1248,14 +1222,6 @@
       store.set('layers', layers);
       dirty = true;
     });
-  });
-
-  const regionSel = document.getElementById('regionStyle');
-  regionSel.value = regionStyle;
-  regionSel.addEventListener('change', () => {
-    regionStyle = regionSel.value;
-    store.set('regionStyle', regionStyle);
-    dirty = true;
   });
 
   const projSel = document.getElementById('projection');

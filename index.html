@@ -84,25 +84,14 @@
       </section>
 
       <section class="panel">
-        <h2>Observer</h2>
-        <div id="observer" class="observer">—</div>
-      </section>
-
-      <section class="panel">
         <h2>Layers</h2>
-        <label><input type="checkbox" data-layer="trails" checked> Trails (last 2 h)</label>
+        <label><input type="checkbox" data-layer="grid" checked> Equator and grid</label>
+        <label><input type="checkbox" data-layer="ecliptic" checked> Ecliptic</label>
         <label><input type="checkbox" data-layer="night" checked> Day / night</label>
         <label><input type="checkbox" data-layer="visible" checked> Visible sky region</label>
         <label><input type="checkbox" data-layer="altitude" checked> Altitude 30° and 60°</label>
-        <label><input type="checkbox" data-layer="ecliptic" checked> Ecliptic</label>
-        <label><input type="checkbox" data-layer="grid" checked> Equator and grid</label>
         <label><input type="checkbox" data-layer="labels" checked> Labels</label>
-        <label class="select" title="Experiment: two ways of telling in-view from out-of-view">Regions
-          <select id="regionStyle">
-            <option value="focus">Day tint + soft gray</option>
-            <option value="haze">Haze (original)</option>
-          </select>
-        </label>
+        <label><input type="checkbox" data-layer="trails" checked> Trails (last 2 h)</label>
         <label class="select">Projection
           <select id="projection">
             <option value="equalEarth">Equal Earth</option>
@@ -131,7 +120,7 @@
         <div><i class="anti"></i> Anti-solar point (directly opposite the Sun)</div>
         <p>Every body is drawn over its <em>sub-point</em>, the place on Earth where it is straight overhead.
           The observer can see everything whose sub-point is in the clear middle of the map, the half of the
-          globe within 90° of them. Beyond their horizon the map fades into haze.</p>
+          globe within 90° of them. Beyond their horizon the map turns gray. Day is tinted sky blue and night is navy.</p>
       </section>
     </aside>
   </main>

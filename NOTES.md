@@ -1,6 +1,6 @@
 # StarMap design notes
 
-## Open problem: making the four regions distinct
+## Making the four regions distinct (resolved in session 2, see below)
 
 The map mixes two independent splits, which gives four regions:
 
@@ -10,7 +10,7 @@ The map mixes two independent splits, which gives four regions:
 | **Day**      | The sky is up, but only the Sun and Moon show | Least important |
 
 **What it does now (end of first session):**
-- Night is a dark navy overlay: a soft step at sunset, deepening through 18° of twilight, up to about 66% opacity (78% before session 2).
+- Night is a dark navy overlay: a soft step at sunset, deepening through 18° of twilight, up to about 78% opacity.
 - Out of view is a flat gray-blue haze (`HAZE`, `HAZE_ALPHA` = 0.62 in `js/app.js`). It fades in from 88° to 110° from the observer.
 - Star and planet brightness follows the *observer's* darkness, not the day/night shading under each body. They're faint (`FAINT` = 0.25) while the observer is in daylight. In view, they brighten through twilight to full strength when the Sun is 12° down at the observer. Out of view they're always faint. This was the user's key insight: visibility depends on whether *you* are in the dark.
 - The lines are the solid pale-gold terminator and the solid cyan horizon.
@@ -50,26 +50,23 @@ The haze we have now only partly does this. Blending toward one mid-gray lifts t
 - Hatching or stipple patterns: busy, and close to the "broken lines" the user dislikes.
 - Tinting the in-view region: tried, and it read too much like the night shading.
 
-### Experiment in progress (session 2): ideas 1 + 2
+### Resolved (session 2): ideas 1 + 2 adopted
 
-Built behind a temporary **Regions** menu in the Layers panel (`regionStyle` in `js/app.js`,
-also `?regions=focus|haze`):
-- **Day tint + soft gray** (`focus`, now the default): day side gets a pale sky-blue wash
-  (`DAY_RGB`, `DAY_ALPHA` = 0.3). Past the horizon the finished map is redrawn through
-  `grayscale(1) brightness(0.72) contrast(0.85) blur(0.6px)`, feathered from 88° to 98°.
-  Bodies are drawn afterwards, so they stay sharp (and faint out of view, as before).
-- **Haze (original)**: the flat gray-blue haze, for comparison.
+Tried behind a temporary toggle against the old haze; the user chose the new style and
+the haze is gone.
+- **Day** gets a pale sky-blue wash (`DAY_RGB`, `DAY_ALPHA` = 0.3); **night** is navy, now
+  lighter (at most about 66%, was 78%).
+- **Out of view:** the finished map is redrawn through
+  `grayscale(1) brightness(0.72) contrast(0.85) blur(0.6px)` (`FOCUS_FILTER`), feathered
+  from 88° to 98°. Bodies are drawn afterwards, so they stay sharp. Without canvas
+  filters (older Safari) the same gray is done per pixel, without the blur.
+- User feedback: the grayscale works; a 2px blur was confusing, so the blur is now barely
+  there. The brightness(0.72) keeps out-of-view day from being the brightest area on the
+  map, since it's the least important region.
 
-First look: all four regions read as distinct. In view: blue day, navy night. Out of view:
-mid gray for day, dark gray for night. The brightness(0.72) was added because out-of-view
-day was otherwise the brightest area on the map despite being the least important.
-Falls back to the haze where canvas filters aren't supported (older Safari).
+Still open from the list above: idea 4 (sky-dome touches: the 30° and 60° altitude rings
+are done; N/E/S/W labels are not) and idea 7 (a 2×2 legend swatch).
 
-Once a style is chosen, remove the menu and the losing code path.
-
-### Suggested next step (before the experiment)
-
-Prototype idea 1 with idea 2 (grayscale and blur out of view, plus a daylight wash), with a temporary toggle to compare against the current haze. Then consider idea 4 (the sky dome) as the finishing touch for the in-view region.
 
 ## User preferences to keep in mind
 - Evening-focused (sunset to midnight). The map is always centered on the observer.
