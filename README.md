@@ -20,7 +20,7 @@ index.html?lat=42.36&lon=-71.06&proj=globe  # 3-D globe
 
 ## What's on the map
 
-- **Sun, Moon, and the five naked-eye planets** (Mercury, Venus, Mars, Jupiter, Saturn), plus 22 of the brightest stars.
+- **Sun, Moon, and the five naked-eye planets** (Mercury, Venus, Mars, Jupiter, Saturn), plus 22 of the brightest stars. Turn on **Fainter stars** to add 144 more, down to magnitude 3. These are never labeled or trailed, to keep the map uncluttered.
 - **The Moon's phase glyph** shows the real lit fraction. It is turned the way it looks from where you stand, with your zenith as "up".
 - **Day and night shading:** a pale sky-blue tint on the day side and navy on the night side, with a soft twilight edge, and the terminator (the sunrise/sunset line).
 - **Anti-solar point:** a small black ring marking the spot directly opposite the Sun.
@@ -68,6 +68,6 @@ That's good to a small fraction of a degree between roughly 1800 and 2050. Equin
 | `js/astro.js` | Ephemeris: Sun, Moon, planets, sidereal time, sub-points |
 | `js/app.js` | Projection, rendering, controls, and the tonight calculations |
 | `data/land.js` | Coastlines (Natural Earth 1:110m, public domain, via world-atlas) |
-| `data/stars.js` | Bright-star catalog (J2000 positions, magnitudes) |
+| `data/stars.js` | Star catalogs: the bright named stars, plus fainter ones to magnitude 3 from the Yale Bright Star Catalog (J2000 positions, magnitudes) |
 | `data/cities.js` | Cities for the place picker, as `[name, lat, lon]` |
 | `NOTES.md` | Design notes and open questions |

@@ -19,7 +19,7 @@
     ? { lat: urlLat, lon: urlLon } : store.get('observer', null);
   const observer = savedObserver || { lat: 51.48, lon: 0.0 };
   const layers = Object.assign(
-    { trails: true, night: true, visible: true, altitude: true, ecliptic: true, grid: true, labels: true },
+    { trails: true, night: true, visible: true, altitude: true, ecliptic: true, grid: true, labels: true, faintStars: false },
     store.get('layers', {}));
   let projection = params.get('proj') || store.get('projection', 'equalEarth');
   if (!['equalEarth', 'equirect', 'globe'].includes(projection)) projection = 'equalEarth';
@@ -616,6 +616,7 @@
     for (let i = 0; i <= n; i++) {
       const tt = start + (end - start) * i / n;
       for (const b of computeSky(new Date(tt)).bodies) {
+        if (b.faint) continue;
         const alt = altAz(observer.lat, observer.lon, b.lat, b.lon).alt;
         if (!trails.has(b.name)) trails.set(b.name, []);
         trails.get(b.name).push({ t: tt, lon: b.lon, lat: b.lat, alt });
@@ -660,6 +661,7 @@
     for (let i = 0; i <= TRAIL_STEPS; i++) {
       const tt = t - TRAIL_SPAN * (1 - i / TRAIL_STEPS);
       for (const b of computeSky(new Date(tt)).bodies) {
+        if (b.faint) continue;  // fainter stars never get trails
         const alt = altAz(observer.lat, observer.lon, b.lat, b.lon).alt;
         if (!trails.has(b.name)) trails.set(b.name, []);
         trails.get(b.name).push({ t: tt, lon: b.lon, lat: b.lat, alt });
@@ -702,7 +704,7 @@
     : b.kind === 'planet' ? PLANET_COLORS[b.name] : '#ffffff');
   const bodyRadius = (b) => (b.kind === 'sun' ? 10 : b.kind === 'moon' ? 9
     : b.kind === 'planet' ? Math.max(3.5, Math.min(6.5, 4.2 - 0.55 * b.mag))
-    : Math.max(1.6, Math.min(5, 3.2 - 0.8 * b.mag)));
+    : Math.max(b.faint ? 1.1 : 1.6, Math.min(5, 3.2 - 0.8 * b.mag)));
 
   let hits = [];
 
@@ -788,6 +790,7 @@
     // Draw faint things first so bright ones sit on top.
     const order = [...sky.bodies].sort((a, b) => b.mag - a.mag);
     for (const b of order) {
+      if (b.faint && !layers.faintStars) continue;
       const rp = toRot(b.lat, b.lon);
       if (!globeFacing(...rp)) continue;
       const [x, y] = projectRot(...rp), r = bodyRadius(b);
@@ -810,7 +813,7 @@
         ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
       }
 
-      if (layers.labels) {
+      if (layers.labels && !b.faint) {
         const bold = b.kind !== 'star';
         ctx.font = (bold ? '600 12px' : '11px') + ' system-ui, sans-serif';
         ctx.textBaseline = 'middle';

@@ -171,6 +171,10 @@
       const eq = precessEquatorial(st.ra * 15, st.dec, T);
       bodies.push({ name: st.name, kind: 'star', mag: st.mag, ...eq, ...sub(eq) });
     }
+    for (const st of FAINT_STARS) {
+      const eq = precessEquatorial(st.ra * 15, st.dec, T);
+      bodies.push({ name: st.name, kind: 'star', faint: true, mag: st.mag, ...eq, ...sub(eq) });
+    }
 
     // Ecliptic of date traced as sub-points.
     const eps = obliquity(T), ecliptic = [];
