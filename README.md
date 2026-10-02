@@ -45,7 +45,7 @@ index.html?lat=42.36&lon=-71.06&proj=globe  # 3-D globe
 **Getting information**
 - **Hover** over any object for its coordinates, where it's overhead, and its altitude and azimuth from you.
 - The **Tonight** panel shows sunset, full dark and solar midnight.
-- The **Sky from here** table lists every object's altitude and direction, plus when it's up during tonight's evening.
+- The **Sky from here** table lists the Sun's, Moon's and planets' altitude and direction, plus when it's up during tonight's evening.
 - The **Layers** panel toggles the equator and grid, the ecliptic, day/night, the visible region, the altitude rings, labels and trails. It also switches the projection between **Equal Earth** (the default, which keeps areas true near the poles), **equirectangular**, and a **3-D globe**.
 
 Times are shown on your own clock. "Midnight" means solar midnight at the observer.

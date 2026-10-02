@@ -1038,10 +1038,8 @@
 
     updateLocationBar();
 
-    const rank = { sun: 0, moon: 1, planet: 2, star: 3 };
-    const upTonight = (b) => (evening && b.kind === 'star' && upIntervals(evening.trails.get(b.name)).length ? 0 : 1);
-    const rows = [...sky.bodies].sort((a, b) => (rank[a.kind] - rank[b.kind])
-      || (a.kind === 'star' ? (upTonight(a) - upTonight(b)) || (a.mag - b.mag) : 0));
+    const rank = { sun: 0, moon: 1, planet: 2 };
+    const rows = sky.bodies.filter((b) => b.kind !== 'star').sort((a, b) => rank[a.kind] - rank[b.kind]);
     tbody.innerHTML = rows.map((b) => {
       const { alt, az } = b.altAz;
       return `<tr class="${alt > 0 ? '' : 'below'}">
